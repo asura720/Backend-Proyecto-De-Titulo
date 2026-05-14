@@ -1,0 +1,33 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: apigatewaycuidapp
+  cloud:
+    gateway:
+      routes:
+        # Ruta hacia el Microservicio de Autenticación
+        - id: auth-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/auth/**
+
+        # Ruta hacia el Microservicio de Medicamentos
+        - id: medicamentos-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/medications/**
+      
+      # Configuración global de CORS para que Flutter no tenga problemas
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+            allowedHeaders: "*"
