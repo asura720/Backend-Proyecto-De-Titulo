@@ -1,0 +1,2 @@
+com\cuidapp\apigatewaycuidapp\ApigatewaycuidappApplication.class
+com\cuidapp\apigatewaycuidapp\JwtAuthenticationFilter.class

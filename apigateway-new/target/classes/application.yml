@@ -1,0 +1,35 @@
+server:
+  port: 8083
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:esta_es_una_clave_muy_secreta_y_larga_para_cuidapp_2026}
+
+spring:
+  application:
+    name: apigateway-new
+  cloud:
+    gateway:
+      routes:
+        - id: auth-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/auth/**
+
+        - id: medicamentos-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/medications
+            - Path=/api/medications/**
+
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+            allowedHeaders: "*"
