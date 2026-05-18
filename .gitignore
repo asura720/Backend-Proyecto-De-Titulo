@@ -1,0 +1,11 @@
+
+# Ignore Maven build output
+target/
+**/target/
+
+# Ignore jar artifacts
+*.jar
+
+# IDE/editor files
+.idea/
+.vscode/
