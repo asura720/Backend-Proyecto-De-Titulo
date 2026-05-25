@@ -31,6 +31,24 @@ public class AutenticacionController {
         }
     }
 
+    @GetMapping("/profile")
+    public ResponseEntity<?> getProfile(@RequestHeader("X-User-Id") Long userId) {
+        return userService.findById(userId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateProfile(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestBody User data) {
+        try {
+            return ResponseEntity.ok(userService.updateProfile(userId, data));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> credentials) {
         String email = credentials.get("email");
@@ -40,7 +58,7 @@ public class AutenticacionController {
                 .map(user -> {
                     // Verificamos si la contraseña coincide con el hash de la BD
                     if (passwordEncoder.matches(password, user.getPassword())) {
-                        String token = jwtUtils.generateToken(user.getEmail());
+                        String token = jwtUtils.generateToken(user.getEmail(), user.getId());
                         
                         // Devolvemos el token y datos básicos del perfil
                         return ResponseEntity.ok(Map.of(

@@ -24,8 +24,17 @@ public class Medication {
     private String containerColor;
     private String iconColor;     
 
-    private boolean isTaken = false;
+    private Boolean isTaken = false;
     private LocalDateTime takenDateTime;
 
     private Long userId; // Relación con el usuario de la App
+
+    // Compatibilidad con código existente que espera métodos isTaken() / setTaken(boolean)
+    public boolean isTaken() {
+        return Boolean.TRUE.equals(this.isTaken);
+    }
+
+    public void setTaken(boolean taken) {
+        this.isTaken = taken;
+    }
 }

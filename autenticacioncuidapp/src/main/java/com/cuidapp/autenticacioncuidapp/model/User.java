@@ -1,19 +1,21 @@
 package com.cuidapp.autenticacioncuidapp.model;
 
 import java.time.LocalDate;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonProperty.Access;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.Builder;
 
 @Entity
 @Table(name = "users")
-@Getter @Setter 
-@NoArgsConstructor 
+@Getter @Setter
+@NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,6 +24,7 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
+    @JsonProperty(access = Access.WRITE_ONLY)
     @Column(nullable = false)
     private String password;
 
@@ -43,4 +46,8 @@ public class User {
     // Cambiado para coincidir con bloodType en Flutter
     @Column(name = "blood_type")
     private String bloodType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserRole role = UserRole.INDEPENDIENTE;
 }

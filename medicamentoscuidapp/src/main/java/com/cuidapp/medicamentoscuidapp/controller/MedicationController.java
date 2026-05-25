@@ -31,8 +31,34 @@ public class MedicationController {
      * POST http://localhost:8082/api/medications
      */
     @PostMapping
-    public ResponseEntity<Medication> crear(@RequestBody Medication medication) {
-        return new ResponseEntity<>(medicationService.save(medication), HttpStatus.CREATED);
+    public ResponseEntity<Medication> crear(
+            @RequestBody Medication medication,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        medication.setUserId(userId);
+        return new ResponseEntity<>(medicationService.saveAndNotify(medication), HttpStatus.CREATED);
+    }
+
+    /**
+     * Editar un medicamento existente.
+     * PUT http://localhost:8082/api/medications/1
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<Medication> editar(
+            @PathVariable Long id,
+            @RequestBody Medication data,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        try {
+            return ResponseEntity.ok(medicationService.update(id, data, userId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
     }
 
     /**
@@ -40,11 +66,16 @@ public class MedicationController {
      * PATCH http://localhost:8082/api/medications/1/toggle
      */
     @PatchMapping("/{id}/toggle")
-    public ResponseEntity<Medication> toggleEstado(@PathVariable Long id) {
+    public ResponseEntity<Medication> toggleEstado(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         try {
-            return ResponseEntity.ok(medicationService.toggleTaken(id));
+            return ResponseEntity.ok(medicationService.toggleTaken(id, userId));
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
     }
 
@@ -53,8 +84,17 @@ public class MedicationController {
      * DELETE http://localhost:8082/api/medications/1
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
-        medicationService.delete(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<Void> eliminar(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        try {
+            medicationService.delete(id, userId);
+            return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
     }
 }

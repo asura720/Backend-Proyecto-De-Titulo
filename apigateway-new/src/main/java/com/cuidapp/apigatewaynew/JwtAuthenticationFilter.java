@@ -11,6 +11,7 @@ import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
@@ -40,7 +41,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
                 })
                 .build();
 
-        if (isPublicPath(path)) {
+        if (isPublicPath(path) || HttpMethod.OPTIONS.equals(exchange.getRequest().getMethod())) {
             log.debug("Public path detected, skipping auth: {}", path);
             return chain.filter(exchange.mutate().request(sanitizedRequest).build());
         }
@@ -84,7 +85,10 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     }
 
     private boolean isPublicPath(String path) {
-        return path.startsWith("/api/auth/");
+        return path.equals("/api/auth/login")
+            || path.equals("/api/auth/register")
+            || path.startsWith("/api/auth/vincular/aceptar/")
+            || path.startsWith("/api/auth/vincular/rechazar/");
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange, String message) {

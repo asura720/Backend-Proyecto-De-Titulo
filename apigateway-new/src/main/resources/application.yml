@@ -10,26 +10,37 @@ spring:
     name: apigateway-new
   cloud:
     gateway:
-      routes:
-        - id: auth-service
-          uri: http://localhost:8081
-          predicates:
-            - Path=/api/auth/**
+      server:
+        webflux:
+          routes:
+            - id: auth-service
+              uri: http://localhost:8081
+              predicates:
+                - Path=/api/auth/**
 
-        - id: medicamentos-service
-          uri: http://localhost:8082
-          predicates:
-            - Path=/api/medications
-            - Path=/api/medications/**
+            - id: medicamentos-service
+              uri: http://localhost:8082
+              predicates:
+                - Path=/api/medications,/api/medications/**
 
-      globalcors:
-        cors-configurations:
-          '[/**]':
-            allowedOrigins: "*"
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - PATCH
-              - DELETE
-            allowedHeaders: "*"
+            - id: notifications-service
+              uri: http://localhost:8084
+              predicates:
+                - Path=/api/notifications,/api/notifications/**
+
+            - id: catalog-service
+              uri: http://localhost:8085
+              predicates:
+                - Path=/api/catalog,/api/catalog/**
+
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOrigins: "*"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - PATCH
+                  - DELETE
+                allowedHeaders: "*"

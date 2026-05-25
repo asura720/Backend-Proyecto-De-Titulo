@@ -5,6 +5,7 @@ import com.cuidapp.medicamentoscuidapp.repository.MedicationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,35 +27,71 @@ public class MedicationService {
      * Guarda un nuevo medicamento o actualiza uno existente.
      */
     public Medication save(Medication medication) {
+        if (medication.getIsTaken() == null) {
+            medication.setTaken(false);
+        }
         return medicationRepository.save(medication);
     }
 
-    /**
-     * Lógica espejo de toggleMedicationTaken de tu Flutter Provider.
-     * Si se marca como tomado, registra la fecha/hora actual de Laragon.
-     */
-    public Medication toggleTaken(Long id) {
+    // After saving a medication, schedule notification by calling notifications service
+    public Medication saveAndNotify(Medication medication) {
+        Medication saved = save(medication);
+
+        // Call notifications service (via gateway) asynchronously
+        try {
+            var rest = new org.springframework.web.client.RestTemplate();
+            var req = new HashMap<String, Object>();
+            req.put("userId", saved.getUserId());
+            req.put("medicationId", saved.getId());
+            req.put("medicationName", saved.getName());
+            req.put("scheduledAt", java.time.LocalDateTime.now().plusHours(1).toString());
+            req.put("title", "Hora de tu medicamento");
+            req.put("message", "Es hora de tomar " + saved.getName());
+
+            String notificationsService = "http://localhost:8084/api/notifications/schedule";
+            rest.postForEntity(notificationsService, req, String.class);
+        } catch (Exception e) {
+            // log but do not fail the medication save
+            System.err.println("Failed to call notifications service: " + e.getMessage());
+        }
+
+        return saved;
+    }
+
+    public Medication update(Long id, Medication data, Long userId) {
         return medicationRepository.findById(id).map(med -> {
-            // Cambiamos el estado (true/false)
+            if (!med.getUserId().equals(userId)) {
+                throw new RuntimeException("No autorizado");
+            }
+            med.setName(data.getName());
+            med.setDosage(data.getDosage());
+            med.setFrequency(data.getFrequency());
+            med.setTimes(data.getTimes());
+            med.setContainerColor(data.getContainerColor());
+            med.setIconColor(data.getIconColor());
+            return medicationRepository.save(med);
+        }).orElseThrow(() -> new RuntimeException("Medicamento no encontrado"));
+    }
+
+    public Medication toggleTaken(Long id, Long userId) {
+        return medicationRepository.findById(id).map(med -> {
+            if (!med.getUserId().equals(userId)) {
+                throw new RuntimeException("No autorizado");
+            }
             boolean newState = !med.isTaken();
             med.setTaken(newState);
-            
-            // Si es true, ponemos la hora actual. Si es false, la borramos.
-            if (newState) {
-                med.setTakenDateTime(LocalDateTime.now());
-            } else {
-                med.setTakenDateTime(null);
-            }
-            
+            med.setTakenDateTime(newState ? LocalDateTime.now() : null);
             return medicationRepository.save(med);
         }).orElseThrow(() -> new RuntimeException("No se encontró el medicamento con ID: " + id));
     }
 
-    /**
-     * Elimina el medicamento de la base de datos.
-     */
-    public void delete(Long id) {
-        medicationRepository.deleteById(id);
+    public void delete(Long id, Long userId) {
+        medicationRepository.findById(id).ifPresentOrElse(med -> {
+            if (!med.getUserId().equals(userId)) {
+                throw new RuntimeException("No autorizado");
+            }
+            medicationRepository.deleteById(id);
+        }, () -> { throw new RuntimeException("Medicamento no encontrado"); });
     }
 
     /**

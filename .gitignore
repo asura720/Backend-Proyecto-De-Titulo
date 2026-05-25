@@ -9,3 +9,12 @@ target/
 # IDE/editor files
 .idea/
 .vscode/
+
+# Claude Code session data
+.claude/
+
+# Build logs
+*.log
+
+# Postman collections (datos locales)
+postman_collection_cuidapp.json
