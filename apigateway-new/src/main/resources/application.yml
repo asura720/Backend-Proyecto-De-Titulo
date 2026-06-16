@@ -1,0 +1,46 @@
+server:
+  port: 8083
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:esta_es_una_clave_muy_secreta_y_larga_para_cuidapp_2026}
+
+spring:
+  application:
+    name: apigateway-new
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: auth-service
+              uri: ${AUTH_SERVICE_URI:http://localhost:8081}
+              predicates:
+                - Path=/api/auth/**
+
+            - id: medicamentos-service
+              uri: ${MEDICAMENTOS_SERVICE_URI:http://localhost:8082}
+              predicates:
+                - Path=/api/medications,/api/medications/**
+
+            - id: notifications-service
+              uri: ${NOTIFICATIONS_SERVICE_URI:http://localhost:8084}
+              predicates:
+                - Path=/api/notifications,/api/notifications/**
+
+            - id: catalog-service
+              uri: ${CATALOG_SERVICE_URI:http://localhost:8085}
+              predicates:
+                - Path=/api/catalog,/api/catalog/**
+
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOrigins: "*"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - PATCH
+                  - DELETE
+                allowedHeaders: "*"

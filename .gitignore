@@ -1,0 +1,25 @@
+
+# Ignore Maven build output
+target/
+**/target/
+
+# Ignore jar artifacts
+*.jar
+
+# IDE/editor files
+.idea/
+.vscode/
+
+# Claude Code session data
+.claude/
+
+# Build logs
+*.log
+
+# Postman collections (datos locales)
+postman_collection_cuidapp.json
+
+# SECRETOS - NUNCA subir a git
+.env
+firebase-service-account.json
+*-firebase-adminsdk-*.json

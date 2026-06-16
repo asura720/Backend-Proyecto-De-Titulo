@@ -1,0 +1,132 @@
+# docker-compose para PRODUCCIÓN en AWS EC2.
+# Diferencias con el docker-compose.yml local:
+#  - Incluye un contenedor MySQL (ya NO depende de Laragon / host.docker.internal)
+#  - Datos de MySQL persisten en un volumen (mysql-data)
+#  - restart: always en todos los servicios (se reinician solos si fallan o si
+#    se reinicia la instancia) -> "que funcione siempre"
+#  - Solo el API Gateway expone puerto al exterior (8083). El resto es interno.
+#  - Contraseñas/secretos se leen de un archivo .env (ver .env.example)
+#
+# Uso en el servidor:
+#   docker compose -f docker-compose.aws.yml up --build -d
+
+services:
+  # ---- Base de datos MySQL ----
+  mysql:
+    image: mysql:8.0
+    container_name: cuidapp-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - cuidapp-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  # ---- Microservicio de Autenticación ----
+  autenticacion:
+    build: ./autenticacioncuidapp
+    container_name: cuidapp-autenticacion
+    restart: always
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/cuidapp_auth?createDatabaseIfNotExist=true&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true"
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70 -Xmx300m"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      # Push de bienvenida: deja en false hasta tener Firebase configurado
+      FCM_ENABLED: "false"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - cuidapp-net
+
+  # ---- Microservicio de Medicamentos ----
+  medicamentos:
+    build: ./medicamentoscuidapp
+    container_name: cuidapp-medicamentos
+    restart: always
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/cuidapp_meds?createDatabaseIfNotExist=true&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true"
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70 -Xmx300m"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      NOTIFICATIONS_SERVICE_URL: http://notificaciones:8084
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - cuidapp-net
+
+  # ---- Microservicio de Notificaciones ----
+  notificaciones:
+    build: ./notificacionescuidapp
+    container_name: cuidapp-notificaciones
+    restart: always
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/cuidapp_notifications?createDatabaseIfNotExist=true&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true"
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70 -Xmx300m"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      # Push (FCM) activado. Requiere firebase-service-account.json en la raíz
+      # del backend (se monta abajo).
+      FCM_ENABLED: "true"
+      FCM_CREDENTIALS_PATH: /app/firebase-service-account.json
+    volumes:
+      - ./firebase-service-account.json:/app/firebase-service-account.json:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - cuidapp-net
+
+  # ---- Microservicio de Catálogo ----
+  catalogo:
+    build: ./catalogocuidapp
+    container_name: cuidapp-catalogo
+    restart: always
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/cuidapp_catalog?createDatabaseIfNotExist=true&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true"
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70 -Xmx300m"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - cuidapp-net
+
+  # ---- API Gateway (único punto de entrada público) ----
+  apigateway:
+    build: ./apigateway-new
+    container_name: cuidapp-apigateway
+    restart: always
+    ports:
+      - "8083:8083"
+    environment:
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70 -Xmx256m"
+      AUTH_SERVICE_URI: http://autenticacion:8081
+      MEDICAMENTOS_SERVICE_URI: http://medicamentos:8082
+      NOTIFICATIONS_SERVICE_URI: http://notificaciones:8084
+      CATALOG_SERVICE_URI: http://catalogo:8085
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      - autenticacion
+      - medicamentos
+      - notificaciones
+      - catalogo
+    networks:
+      - cuidapp-net
+
+volumes:
+  mysql-data:
+
+networks:
+  cuidapp-net:
+    driver: bridge

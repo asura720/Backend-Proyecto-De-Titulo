@@ -1,0 +1,89 @@
+services:
+  # ---- Microservicio de Autenticación ----
+  autenticacion:
+    build: ./autenticacioncuidapp
+    container_name: cuidapp-autenticacion
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://host.docker.internal:3306/cuidapp_auth?createDatabaseIfNotExist=true&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ""
+      JWT_SECRET: esta_es_una_clave_muy_secreta_y_larga_para_cuidapp_2026
+    networks:
+      - cuidapp-net
+
+  # ---- Microservicio de Medicamentos ----
+  medicamentos:
+    build: ./medicamentoscuidapp
+    container_name: cuidapp-medicamentos
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://host.docker.internal:3306/cuidapp_meds?createDatabaseIfNotExist=true&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ""
+      # Llamada interna directa al servicio de notificaciones (por nombre de contenedor)
+      NOTIFICATIONS_SERVICE_URL: http://notificaciones:8084
+    networks:
+      - cuidapp-net
+
+  # ---- Microservicio de Notificaciones ----
+  notificaciones:
+    build: ./notificacionescuidapp
+    container_name: cuidapp-notificaciones
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://host.docker.internal:3306/cuidapp_notifications?createDatabaseIfNotExist=true&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ""
+      # ---- Push (Firebase Cloud Messaging) ----
+      # Para activar el push real: pon FCM_ENABLED en "true" y descomenta el bloque
+      # "volumes" de abajo, dejando tu firebase-service-account.json en la raíz del
+      # backend (junto a este docker-compose.yml). Mientras esté en "false", las
+      # notificaciones solo se escriben en log y nada falla.
+      FCM_ENABLED: "true"
+      FCM_CREDENTIALS_PATH: /app/firebase-service-account.json
+    volumes:
+      - ./firebase-service-account.json:/app/firebase-service-account.json:ro
+    networks:
+      - cuidapp-net
+
+  # ---- Microservicio de Catálogo ----
+  catalogo:
+    build: ./catalogocuidapp
+    container_name: cuidapp-catalogo
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://host.docker.internal:3306/cuidapp_catalog?createDatabaseIfNotExist=true&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ""
+    networks:
+      - cuidapp-net
+
+  # ---- API Gateway (punto de entrada público) ----
+  apigateway:
+    build: ./apigateway-new
+    container_name: cuidapp-apigateway
+    ports:
+      - "8083:8083"
+    environment:
+      # Rutas internas por nombre de contenedor: nunca cambia la IP
+      AUTH_SERVICE_URI: http://autenticacion:8081
+      MEDICAMENTOS_SERVICE_URI: http://medicamentos:8082
+      NOTIFICATIONS_SERVICE_URI: http://notificaciones:8084
+      CATALOG_SERVICE_URI: http://catalogo:8085
+      JWT_SECRET: esta_es_una_clave_muy_secreta_y_larga_para_cuidapp_2026
+    depends_on:
+      - autenticacion
+      - medicamentos
+      - notificaciones
+      - catalogo
+    networks:
+      - cuidapp-net
+
+networks:
+  cuidapp-net:
+    driver: bridge
