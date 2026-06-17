@@ -52,6 +52,19 @@ public class UserService {
         return userRepository.findByEmail(email);
     }
 
+    /**
+     * Restablece la contraseña de un usuario dado su correo.
+     * Devuelve true si el usuario existía y se actualizó.
+     */
+    @Transactional
+    public boolean resetPassword(String email, String newPassword) {
+        return userRepository.findByEmail(email).map(user -> {
+            user.setPassword(passwordEncoder.encode(newPassword));
+            userRepository.save(user);
+            return true;
+        }).orElse(false);
+    }
+
     public Optional<User> findById(Long id) {
         return userRepository.findById(id);
     }

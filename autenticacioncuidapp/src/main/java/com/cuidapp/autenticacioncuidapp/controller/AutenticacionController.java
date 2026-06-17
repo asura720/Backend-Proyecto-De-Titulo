@@ -30,6 +30,22 @@ public class AutenticacionController {
         }
     }
 
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        String newPassword = body.get("password");
+        if (email == null || newPassword == null || newPassword.length() < 4) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Datos inválidos (la contraseña debe tener al menos 4 caracteres)"));
+        }
+        boolean ok = userService.resetPassword(email, newPassword);
+        if (!ok) {
+            return new ResponseEntity<>(Map.of("message", "No existe una cuenta con ese correo"),
+                    HttpStatus.NOT_FOUND);
+        }
+        return ResponseEntity.ok(Map.of("message", "Contraseña actualizada correctamente"));
+    }
+
     @GetMapping("/profile")
     public ResponseEntity<?> getProfile(@RequestHeader("X-User-Id") Long userId) {
         return userService.findById(userId)
