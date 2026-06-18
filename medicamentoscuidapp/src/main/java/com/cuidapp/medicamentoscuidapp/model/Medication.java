@@ -18,7 +18,7 @@ public class Medication {
     private String dosage;
     private String frequency;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     private List<String> times;
 
     private String containerColor;
