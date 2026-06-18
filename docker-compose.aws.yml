@@ -59,6 +59,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       NOTIFICATIONS_SERVICE_URL: http://notificaciones:8084
       AUTH_SERVICE_URL: http://autenticacion:8081
+      TZ: America/Santiago
     depends_on:
       mysql:
         condition: service_healthy
@@ -79,6 +80,7 @@ services:
       # del backend (se monta abajo).
       FCM_ENABLED: "true"
       FCM_CREDENTIALS_PATH: /app/firebase-service-account.json
+      TZ: America/Santiago
     volumes:
       - ./firebase-service-account.json:/app/firebase-service-account.json:ro
     depends_on:
