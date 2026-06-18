@@ -1,6 +1,7 @@
 package com.cuidapp.notificacionescuidapp.controller;
 
 import com.cuidapp.notificacionescuidapp.dto.DeviceTokenRequest;
+import com.cuidapp.notificacionescuidapp.dto.MedicationAlertRequest;
 import com.cuidapp.notificacionescuidapp.dto.NotificationRequest;
 import com.cuidapp.notificacionescuidapp.dto.SosRequest;
 import com.cuidapp.notificacionescuidapp.dto.WelcomeRequest;
@@ -74,6 +75,30 @@ public class NotificationController {
         Map<String, String> data = Map.of(
                 "type", "sos",
                 "patientName", patient);
+        for (DeviceToken t : tokens) {
+            fcmService.sendAlert(t.getToken(), title, body, data, "cuidapp_sos");
+        }
+        return ResponseEntity.ok(Map.of("sent", tokens.size()));
+    }
+
+    /**
+     * Alerta de medicamento no tomado (atraso de 15 min). La dispara el servicio
+     * de medicamentos. Va con alta prioridad y vibración (mismo canal que el SOS).
+     */
+    @PostMapping("/medication-alert")
+    public ResponseEntity<?> medicationAlert(@Validated @RequestBody MedicationAlertRequest req) {
+        List<DeviceToken> tokens = deviceTokenService.forUser(req.getTargetUserId());
+        String med = (req.getMedicationName() != null && !req.getMedicationName().isBlank())
+                ? req.getMedicationName()
+                : "tu medicamento";
+        String patient = req.getPatientName();
+        String title = "⏰ Medicamento sin tomar";
+        String body = (patient != null && !patient.isBlank())
+                ? patient + " no ha tomado " + med + " (atrasado más de 15 min)."
+                : "No has tomado " + med + " (atrasado más de 15 min).";
+        Map<String, String> data = Map.of(
+                "type", "medication_alert",
+                "medicationName", med);
         for (DeviceToken t : tokens) {
             fcmService.sendAlert(t.getToken(), title, body, data, "cuidapp_sos");
         }

@@ -58,6 +58,7 @@ services:
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       NOTIFICATIONS_SERVICE_URL: http://notificaciones:8084
+      AUTH_SERVICE_URL: http://autenticacion:8081
     depends_on:
       mysql:
         condition: service_healthy

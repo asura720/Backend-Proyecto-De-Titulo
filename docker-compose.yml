@@ -25,6 +25,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: ""
       # Llamada interna directa al servicio de notificaciones (por nombre de contenedor)
       NOTIFICATIONS_SERVICE_URL: http://notificaciones:8084
+      # Para resolver el cuidador al alertar dosis no tomadas
+      AUTH_SERVICE_URL: http://autenticacion:8081
     networks:
       - cuidapp-net
 

@@ -89,6 +89,13 @@ public class VinculacionController {
         }
     }
 
+    // Uso interno (servicio de medicamentos): a quién avisar si un paciente no toma su medicamento
+    // GET /api/auth/vincular/alert-target/{pacienteId}
+    @GetMapping("/alert-target/{pacienteId}")
+    public ResponseEntity<?> alertTarget(@PathVariable Long pacienteId) {
+        return ResponseEntity.ok(vinculacionService.resolveAlertTarget(pacienteId));
+    }
+
     // El paciente obtiene quién es su titular
     // GET /api/auth/vincular/mi-titular
     @GetMapping("/mi-titular")
