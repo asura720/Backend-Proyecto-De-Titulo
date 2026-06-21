@@ -1,6 +1,8 @@
 package com.cuidapp.autenticacioncuidapp.model;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonProperty.Access;
@@ -50,4 +52,20 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role = UserRole.INDEPENDIENTE;
+
+    // Verificación de correo por código de 6 dígitos
+    @Column(name = "email_verified", nullable = false)
+    private Boolean emailVerified = false;
+
+    // Función de cuidador activada por el usuario (habilita la pestaña Cuidador)
+    @Column(name = "caregiver_enabled", nullable = false)
+    private Boolean caregiverEnabled = false;
+
+    @JsonIgnore
+    @Column(name = "verification_code")
+    private String verificationCode;
+
+    @JsonIgnore
+    @Column(name = "verification_expiry")
+    private LocalDateTime verificationExpiry;
 }

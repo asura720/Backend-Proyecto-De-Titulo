@@ -10,4 +10,6 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     List<Notification> findBySentFalseAndScheduledAtBefore(LocalDateTime time);
 
+    long deleteByMedicationId(Long medicationId);
+
 }

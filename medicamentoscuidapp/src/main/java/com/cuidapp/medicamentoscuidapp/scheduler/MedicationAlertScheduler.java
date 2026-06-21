@@ -13,6 +13,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -56,6 +57,9 @@ public class MedicationAlertScheduler {
             for (Medication m : medicationRepository.findAll()) {
                 if (m.getTimes() == null) continue;
 
+                // Si tiene días definidos y hoy no es uno de ellos, no se alerta
+                if (!scheduledToday(m, today)) continue;
+
                 for (String timeStr : m.getTimes()) {
                     LocalTime dose = parseTime(timeStr);
                     if (dose == null) continue;
@@ -65,7 +69,7 @@ public class MedicationAlertScheduler {
 
                     // Avisar solo si ya pasó el margen y no hace demasiado (ventana de 6h)
                     if (now.isAfter(threshold) && now.isBefore(due.plusHours(6))) {
-                        if (takenToday(m, today)) continue;
+                        if (doseTaken(m, today, timeStr)) continue;
 
                         String key = m.getId() + "|" + timeStr + "|" + today;
                         if (!alerted.add(key)) continue; // ya se alertó esta dosis hoy
@@ -79,10 +83,17 @@ public class MedicationAlertScheduler {
         }
     }
 
-    private boolean takenToday(Medication m, LocalDate today) {
-        return m.isTaken()
-                && m.getTakenDateTime() != null
-                && m.getTakenDateTime().toLocalDate().isEqual(today);
+    /** True si el medicamento corresponde tomarse hoy (sin días = todos los días). */
+    private boolean scheduledToday(Medication m, LocalDate today) {
+        if (m.getDays() == null || m.getDays().isEmpty()) return true;
+        String dow = String.valueOf(today.getDayOfWeek().getValue()); // 1=Lunes ... 7=Domingo
+        return m.getDays().contains(dow);
+    }
+
+    /** True si esa dosis puntual (hoy + horario) ya fue marcada como tomada. */
+    private boolean doseTaken(Medication m, LocalDate today, String timeStr) {
+        return m.getTakenDoses() != null
+                && m.getTakenDoses().contains(today + "|" + timeStr);
     }
 
     /** Parser tolerante: "08:00", "8:00", "8:00 PM", "08:00 p. m." */
@@ -107,30 +118,38 @@ public class MedicationAlertScheduler {
 
     private void sendAlert(Medication m) {
         try {
-            // 1. ¿A quién avisar? (cuidador o el mismo paciente)
+            // 1. ¿A quién avisar? La alerta llega SOLO a las personas del vínculo:
+            //    el propio paciente y, si está vinculado, también su cuidador.
             String targetUrl = authServiceUrl + "/api/auth/vincular/alert-target/" + m.getUserId();
             @SuppressWarnings("unchecked")
             Map<String, Object> target = rest.getForObject(targetUrl, Map.class);
-            if (target == null || target.get("targetUserId") == null) {
-                log.warn("[MedAlert] No se pudo resolver destinatario para userId={}", m.getUserId());
+            if (target == null || target.get("recipients") == null) {
+                log.warn("[MedAlert] No se pudo resolver destinatarios para userId={}", m.getUserId());
                 return;
             }
 
-            Long targetUserId = ((Number) target.get("targetUserId")).longValue();
-            boolean self = Boolean.TRUE.equals(target.get("self"));
-            String patientName = self ? null : (String) target.get("patientName");
+            String patientName = (String) target.get("patientName");
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> recipients =
+                    (List<Map<String, Object>>) target.get("recipients");
 
-            // 2. Enviar la alerta vía servicio de notificaciones
-            Map<String, Object> body = new HashMap<>();
-            body.put("targetUserId", targetUserId);
-            body.put("patientName", patientName);
-            body.put("medicationName", m.getName());
+            // 2. Enviar la alerta a cada destinatario del vínculo
+            for (Map<String, Object> r : recipients) {
+                if (r.get("userId") == null) continue;
+                Long targetUserId = ((Number) r.get("userId")).longValue();
+                boolean self = Boolean.TRUE.equals(r.get("self"));
 
-            rest.postForEntity(notificationsServiceUrl + "/api/notifications/medication-alert",
-                    body, String.class);
+                Map<String, Object> body = new HashMap<>();
+                body.put("targetUserId", targetUserId);
+                body.put("patientName", self ? null : patientName);
+                body.put("medicationName", m.getName());
 
-            log.info("[MedAlert] Alerta enviada: medId={}, '{}', targetUserId={}, self={}",
-                    m.getId(), m.getName(), targetUserId, self);
+                rest.postForEntity(notificationsServiceUrl + "/api/notifications/medication-alert",
+                        body, String.class);
+
+                log.info("[MedAlert] Alerta enviada: medId={}, '{}', targetUserId={}, self={}",
+                        m.getId(), m.getName(), targetUserId, self);
+            }
         } catch (Exception e) {
             log.error("[MedAlert] No se pudo enviar alerta para medId={}: {}", m.getId(), e.getMessage());
         }

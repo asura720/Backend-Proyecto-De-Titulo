@@ -3,7 +3,7 @@ server:
 
 app:
   jwt:
-    secret: ${JWT_SECRET:esta_es_una_clave_muy_secreta_y_larga_para_cuidapp_2026}
+    secret: ${JWT_SECRET:dev_local_only_change_in_env}
 
 spring:
   application:
@@ -44,3 +44,4 @@ spring:
                   - PATCH
                   - DELETE
                 allowedHeaders: "*"
+

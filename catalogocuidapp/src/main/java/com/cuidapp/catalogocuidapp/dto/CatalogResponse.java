@@ -14,6 +14,8 @@ public class CatalogResponse {
     private String dosage;
     private String form;
     private String manufacturer;
+    private String uso;
+    private String efectosSecundarios;
     private String source;
     private Boolean verified;
 }

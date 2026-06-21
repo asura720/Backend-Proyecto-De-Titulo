@@ -9,7 +9,7 @@ services:
       SPRING_DATASOURCE_URL: "jdbc:mysql://host.docker.internal:3306/cuidapp_auth?createDatabaseIfNotExist=true&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true"
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: ""
-      JWT_SECRET: esta_es_una_clave_muy_secreta_y_larga_para_cuidapp_2026
+      JWT_SECRET: ${JWT_SECRET:-dev_local_only_change_in_env}
     networks:
       - cuidapp-net
 
@@ -77,7 +77,7 @@ services:
       MEDICAMENTOS_SERVICE_URI: http://medicamentos:8082
       NOTIFICATIONS_SERVICE_URI: http://notificaciones:8084
       CATALOG_SERVICE_URI: http://catalogo:8085
-      JWT_SECRET: esta_es_una_clave_muy_secreta_y_larga_para_cuidapp_2026
+      JWT_SECRET: ${JWT_SECRET:-dev_local_only_change_in_env}
     depends_on:
       - autenticacion
       - medicamentos
@@ -89,3 +89,4 @@ services:
 networks:
   cuidapp-net:
     driver: bridge
+

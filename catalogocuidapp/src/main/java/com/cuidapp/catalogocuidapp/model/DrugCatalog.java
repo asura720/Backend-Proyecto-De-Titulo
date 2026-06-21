@@ -23,6 +23,14 @@ public class DrugCatalog {
     private String form;
     private String manufacturer;
 
+    // Para qué sirve el medicamento
+    @Column(columnDefinition = "TEXT")
+    private String uso;
+
+    // Efectos secundarios frecuentes
+    @Column(name = "efectos_secundarios", columnDefinition = "TEXT")
+    private String efectosSecundarios;
+
     @Column(length = 2, columnDefinition = "VARCHAR(2) DEFAULT 'CL'")
     private String country;
 

@@ -113,23 +113,26 @@ public class VinculacionService {
     }
 
     /**
-     * Resuelve a quién avisar si un paciente no toma su medicamento:
-     * - Si tiene cuidador (titular): al titular.
-     * - Si es independiente (sin vínculo): a sí mismo.
-     * Devuelve targetUserId, el nombre del paciente y si es para sí mismo.
+     * Resuelve a quién avisar si un paciente no toma su medicamento.
+     * La alerta llega SOLO a las personas del vínculo:
+     *  - Siempre al propio paciente (self=true).
+     *  - Y, si está vinculado, también a su cuidador titular (self=false).
+     * Devuelve el nombre del paciente y la lista de destinatarios.
      */
     public Map<String, Object> resolveAlertTarget(Long pacienteId) {
         String patientName = userRepository.findById(pacienteId)
                 .map(User::getName).orElse("");
-        return vinculacionRepository.findByPacienteId(pacienteId)
-                .<Map<String, Object>>map(v -> Map.of(
-                        "targetUserId", v.getTitular().getId(),
-                        "patientName", patientName,
-                        "self", false))
-                .orElseGet(() -> Map.of(
-                        "targetUserId", pacienteId,
-                        "patientName", patientName,
-                        "self", true));
+
+        List<Map<String, Object>> recipients = new java.util.ArrayList<>();
+        // El paciente siempre recibe el aviso
+        recipients.add(Map.of("userId", pacienteId, "self", true));
+        // El cuidador vinculado también, si existe
+        vinculacionRepository.findByPacienteId(pacienteId).ifPresent(v ->
+                recipients.add(Map.of("userId", v.getTitular().getId(), "self", false)));
+
+        return Map.of(
+                "patientName", patientName,
+                "recipients", recipients);
     }
 
     // El paciente consulta quién es su titular

@@ -33,6 +33,13 @@ public class NotificationController {
         return ResponseEntity.ok(saved);
     }
 
+    /** Elimina las notificaciones programadas de un medicamento (al borrarlo). */
+    @DeleteMapping("/medication/{medicationId}")
+    public ResponseEntity<?> deleteByMedication(@PathVariable Long medicationId) {
+        long removed = service.deleteByMedication(medicationId);
+        return ResponseEntity.ok(Map.of("deleted", removed));
+    }
+
     /**
      * Registra el token FCM del dispositivo para un usuario.
      * Lo llama la app tras iniciar sesión.

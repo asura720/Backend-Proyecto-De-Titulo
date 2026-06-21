@@ -14,7 +14,7 @@ public class JwtUtils {
 
     // IMPORTANTE: En producción, esta clave debe venir de variable de entorno.
     // Debe tener al menos 32 caracteres para cumplir con el algoritmo HS256.
-    @Value("${app.jwt.secret:esta_es_una_clave_muy_secreta_y_larga_para_cuidapp_2026}")
+    @Value("${app.jwt.secret:dev_local_only_change_in_env}")
     private String jwtSecret;
     
     // El token expirará en 24 horas (en milisegundos)

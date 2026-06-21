@@ -21,6 +21,14 @@ public class Medication {
     @ElementCollection(fetch = FetchType.EAGER)
     private List<String> times;
 
+    // Días de la semana en que se toma (1=Lunes ... 7=Domingo). Vacío = todos los días.
+    @ElementCollection(fetch = FetchType.EAGER)
+    private List<String> days;
+
+    // Dosis ya tomadas, cada entrada "YYYY-MM-DD|HH:mm" (fecha + horario de la dosis).
+    @ElementCollection(fetch = FetchType.EAGER)
+    private List<String> takenDoses;
+
     private String containerColor;
     private String iconColor;     
 
