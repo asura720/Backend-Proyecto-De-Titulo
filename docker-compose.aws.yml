@@ -48,6 +48,8 @@ services:
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-CuidApp <no-reply@cuidapp.com>}
+      # URL pública del gateway para los enlaces del correo de confirmación de vínculo
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://20.119.249.151:8083}
     depends_on:
       mysql:
         condition: service_healthy
@@ -109,6 +111,19 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    networks:
+      - cuidapp-net
+
+  # ---- Landing: página de presentación (HTML estático) ----
+  # Acceso: http://IP_PUBLICA:8088
+  landing:
+    image: nginx:alpine
+    container_name: cuidapp-landing
+    restart: always
+    ports:
+      - "8088:80"
+    volumes:
+      - ./landing:/usr/share/nginx/html:ro
     networks:
       - cuidapp-net
 

@@ -90,7 +90,8 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             || path.equals("/api/auth/reset-password")
             || path.equals("/api/auth/verify")
             || path.equals("/api/auth/resend-code")
-            || path.equals("/api/auth/send-code");
+            || path.equals("/api/auth/send-code")
+            || path.equals("/api/auth/vincular/confirmar");
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange, String message) {

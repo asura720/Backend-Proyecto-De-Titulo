@@ -31,6 +31,14 @@ public class VinculacionCuidador {
     @Column(nullable = false)
     private Boolean solicitudPendiente = false;
 
+    // El paciente confirmó (por correo) que acepta la vinculación
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean confirmado = false;
+
+    // Token único para confirmar/rechazar el vínculo desde el correo
+    private String confirmToken;
+
     private LocalDateTime createdAt;
 
     @PrePersist

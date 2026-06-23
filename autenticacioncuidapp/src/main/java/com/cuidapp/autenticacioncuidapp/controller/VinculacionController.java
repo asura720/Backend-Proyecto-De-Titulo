@@ -89,6 +89,30 @@ public class VinculacionController {
         }
     }
 
+    // El paciente confirma o rechaza el vínculo desde el correo (enlace público).
+    // GET /api/auth/vincular/confirmar?token=XXX&accion=si|no
+    @GetMapping(value = "/confirmar", produces = "text/html; charset=UTF-8")
+    public ResponseEntity<String> confirmarVinculo(
+            @RequestParam String token,
+            @RequestParam(defaultValue = "no") String accion) {
+        String mensaje = vinculacionService.confirmarVinculo(token, accion);
+        boolean ok = "si".equalsIgnoreCase(accion) && mensaje.startsWith("¡Vínculo");
+        String color = ok ? "#10B981" : "#1A56DB";
+        String html = "<!DOCTYPE html><html lang='es'><head><meta charset='UTF-8'>"
+                + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+                + "<title>CuidApp</title></head>"
+                + "<body style='font-family:Segoe UI,Arial,sans-serif;background:#F5F7FB;margin:0;"
+                + "display:flex;align-items:center;justify-content:center;height:100vh'>"
+                + "<div style='background:#fff;max-width:420px;margin:20px;padding:32px;border-radius:18px;"
+                + "box-shadow:0 10px 30px rgba(0,0,0,.08);text-align:center'>"
+                + "<div style='font-size:46px'>" + (ok ? "✅" : "ℹ️") + "</div>"
+                + "<h2 style='color:" + color + "'>CuidApp</h2>"
+                + "<p style='color:#1A1A1A;font-size:16px'>" + mensaje + "</p>"
+                + "<p style='color:#717182;font-size:13px'>Ya puedes cerrar esta página.</p>"
+                + "</div></body></html>";
+        return ResponseEntity.ok(html);
+    }
+
     // Uso interno (servicio de medicamentos): a quién avisar si un paciente no toma su medicamento
     // GET /api/auth/vincular/alert-target/{pacienteId}
     @GetMapping("/alert-target/{pacienteId}")

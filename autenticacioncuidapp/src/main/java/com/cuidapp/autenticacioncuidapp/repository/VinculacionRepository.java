@@ -13,4 +13,6 @@ public interface VinculacionRepository extends JpaRepository<VinculacionCuidador
     Optional<VinculacionCuidador> findByPacienteId(Long pacienteId);
 
     boolean existsByTitularIdAndPacienteId(Long titularId, Long pacienteId);
+
+    Optional<VinculacionCuidador> findByConfirmToken(String confirmToken);
 }

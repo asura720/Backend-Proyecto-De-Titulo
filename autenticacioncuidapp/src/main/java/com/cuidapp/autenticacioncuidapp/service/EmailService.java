@@ -28,6 +28,47 @@ public class EmailService {
         this.mailSender = mailSenderProvider.getIfAvailable();
     }
 
+    /** Envía al paciente un correo con botones para Confirmar / No confirmar el vínculo. */
+    public void sendVinculoConfirm(String to, String pacienteName, String titularName,
+                                   String confirmUrl, String rejectUrl) {
+        String saludo = (pacienteName != null && !pacienteName.isBlank()) ? pacienteName : "";
+        String cuidador = (titularName != null && !titularName.isBlank()) ? titularName : "Un cuidador";
+        String subject = "Confirma tu vínculo de cuidado en CuidApp";
+        String html = "<div style='font-family:Segoe UI,Arial,sans-serif;max-width:520px;margin:auto;color:#1A1A1A'>"
+                + "<h2 style='color:#1A56DB'>CuidApp</h2>"
+                + "<p>Hola " + saludo + ",</p>"
+                + "<p><b>" + cuidador + "</b> quiere vincularte como su paciente para ayudarte a "
+                + "gestionar tus medicamentos y recibir tus alertas de emergencia.</p>"
+                + "<p>¿Aceptas la vinculación?</p>"
+                + "<div style='margin:24px 0'>"
+                + "<a href='" + confirmUrl + "' style='background:#10B981;color:#fff;text-decoration:none;"
+                + "padding:12px 22px;border-radius:8px;font-weight:bold;margin-right:10px'>✓ Confirmar</a>"
+                + "<a href='" + rejectUrl + "' style='background:#D32F2F;color:#fff;text-decoration:none;"
+                + "padding:12px 22px;border-radius:8px;font-weight:bold'>✕ No confirmar</a>"
+                + "</div>"
+                + "<p style='font-size:12px;color:#717182'>Si no reconoces esta solicitud, pulsa \"No confirmar\".</p>"
+                + "<p style='font-size:12px;color:#717182'>— Equipo CuidApp</p></div>";
+
+        if (!mailEnabled || mailSender == null) {
+            log.warn("[Email] Envío deshabilitado. Confirmar vínculo {}: {} | Rechazar: {}",
+                    to, confirmUrl, rejectUrl);
+            return;
+        }
+        try {
+            jakarta.mail.internet.MimeMessage msg = mailSender.createMimeMessage();
+            org.springframework.mail.javamail.MimeMessageHelper helper =
+                    new org.springframework.mail.javamail.MimeMessageHelper(msg, "UTF-8");
+            helper.setFrom(from);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(html, true);
+            mailSender.send(msg);
+            log.info("[Email] Solicitud de vínculo enviada a {}", to);
+        } catch (Exception e) {
+            log.error("[Email] No se pudo enviar el vínculo a {}: {}", to, e.getMessage());
+        }
+    }
+
     /** Envía un código de seguridad para una acción sensible (recuperar/cambiar
      *  contraseña o eliminar cuenta). */
     public void sendSecurityCode(String to, String name, String code, String accion) {

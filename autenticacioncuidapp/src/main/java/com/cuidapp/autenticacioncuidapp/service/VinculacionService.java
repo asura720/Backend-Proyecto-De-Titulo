@@ -6,6 +6,7 @@ import com.cuidapp.autenticacioncuidapp.model.VinculacionCuidador;
 import com.cuidapp.autenticacioncuidapp.repository.UserRepository;
 import com.cuidapp.autenticacioncuidapp.repository.VinculacionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,11 @@ public class VinculacionService {
     private final VinculacionRepository vinculacionRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
+
+    // URL pública del backend (gateway) para los enlaces del correo de confirmación.
+    @Value("${app.public.url:http://20.119.249.151:8083}")
+    private String publicUrl;
 
     // El titular crea directamente la cuenta del paciente bajo su cargo
     @Transactional
@@ -42,9 +48,13 @@ public class VinculacionService {
         paciente.setRole(UserRole.PACIENTE);
         paciente = userRepository.save(paciente);
 
+        // Vínculo pendiente hasta que el paciente confirme por correo
+        String token = java.util.UUID.randomUUID().toString().replace("-", "");
         VinculacionCuidador vinculacion = VinculacionCuidador.builder()
             .titular(titular)
             .paciente(paciente)
+            .confirmado(false)
+            .confirmToken(token)
             .build();
         vinculacionRepository.save(vinculacion);
 
@@ -54,7 +64,38 @@ public class VinculacionService {
             userRepository.save(titular);
         }
 
+        // Enviar correo al paciente con botones Confirmar / No confirmar
+        String confirmUrl = publicUrl + "/api/auth/vincular/confirmar?token=" + token + "&accion=si";
+        String rejectUrl = publicUrl + "/api/auth/vincular/confirmar?token=" + token + "&accion=no";
+        emailService.sendVinculoConfirm(paciente.getEmail(), paciente.getName(),
+                titular.getName(), confirmUrl, rejectUrl);
+
         return paciente;
+    }
+
+    /**
+     * Confirma o rechaza un vínculo desde el correo. Devuelve un texto de estado.
+     * accion="si" confirma; cualquier otro valor lo rechaza (borra el vínculo).
+     */
+    @Transactional
+    public String confirmarVinculo(String token, String accion) {
+        VinculacionCuidador v = vinculacionRepository.findByConfirmToken(token).orElse(null);
+        if (v == null) {
+            return "Este enlace ya no es válido o el vínculo ya fue procesado.";
+        }
+        if ("si".equalsIgnoreCase(accion)) {
+            v.setConfirmado(true);
+            v.setConfirmToken(null);
+            vinculacionRepository.save(v);
+            return "¡Vínculo confirmado! Ahora tu cuidador podrá ayudarte desde CuidApp.";
+        } else {
+            // Rechazado: se elimina el vínculo y el paciente queda independiente
+            User paciente = v.getPaciente();
+            vinculacionRepository.delete(v);
+            paciente.setRole(UserRole.INDEPENDIENTE);
+            userRepository.save(paciente);
+            return "Rechazaste la vinculación. No se compartirá tu información con ese cuidador.";
+        }
     }
 
     // El titular consulta su lista de pacientes con el estado de permiso/solicitud
@@ -69,6 +110,7 @@ public class VinculacionService {
                 m.put("email", p.getEmail());
                 m.put("puedeGestionar", v.getPacientePuedeGestionar());
                 m.put("solicitudPendiente", v.getSolicitudPendiente());
+                m.put("confirmado", v.getConfirmado());
                 return m;
             })
             .toList();
@@ -126,9 +168,12 @@ public class VinculacionService {
         List<Map<String, Object>> recipients = new java.util.ArrayList<>();
         // El paciente siempre recibe el aviso
         recipients.add(Map.of("userId", pacienteId, "self", true));
-        // El cuidador vinculado también, si existe
-        vinculacionRepository.findByPacienteId(pacienteId).ifPresent(v ->
-                recipients.add(Map.of("userId", v.getTitular().getId(), "self", false)));
+        // El cuidador vinculado también, pero SOLO si el vínculo está confirmado
+        vinculacionRepository.findByPacienteId(pacienteId).ifPresent(v -> {
+            if (Boolean.TRUE.equals(v.getConfirmado())) {
+                recipients.add(Map.of("userId", v.getTitular().getId(), "self", false));
+            }
+        });
 
         return Map.of(
                 "patientName", patientName,
