@@ -80,6 +80,7 @@ public class UserService {
 
         // 4. Cuenta sin verificar: generar código y enviarlo por correo
         user.setEmailVerified(false);
+        user.setCaregiverEnabled(false); // evita null en la columna NOT NULL
         String code = generateCode();
         user.setVerificationCode(code);
         user.setVerificationExpiry(java.time.LocalDateTime.now().plusMinutes(30));
