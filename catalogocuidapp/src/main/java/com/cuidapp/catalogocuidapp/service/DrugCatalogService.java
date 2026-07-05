@@ -34,6 +34,118 @@ public class DrugCatalogService {
     @Value("${wikipedia.api.url:https://es.wikipedia.org/api/rest_v1/page/summary/}")
     private String wikipediaUrl;
 
+    // API de Gemini (Google AI Studio) para identificar el medicamento por foto.
+    @Value("${gemini.api.key:}")
+    private String geminiApiKey;
+
+    @Value("${gemini.model:gemini-2.0-flash}")
+    private String geminiModel;
+
+    /**
+     * Identifica un medicamento a partir de la foto de su caja usando Gemini.
+     * Devuelve el resultado del catálogo (si existe) enriquecido, o los datos que
+     * entregue Gemini. Si no hay API key o falla, devuelve vacío.
+     */
+    public Optional<CatalogResponse> identifyFromImage(String base64Image) {
+        if (geminiApiKey == null || geminiApiKey.isBlank() || base64Image == null) {
+            return Optional.empty();
+        }
+        try {
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/"
+                    + geminiModel + ":generateContent?key=" + geminiApiKey;
+
+            String prompt = "Identifica el medicamento en la foto de su caja. "
+                    + "Responde SOLO un JSON con las claves: name, dosage, uso, efectos. "
+                    + "name = nombre comercial o principio activo (sin la dosis). "
+                    + "dosage = concentracion como '500 mg' o ''. "
+                    + "uso = para que sirve, 1 o 2 frases en espanol. "
+                    + "efectos = efectos secundarios frecuentes, 1 o 2 frases en espanol. "
+                    + "Si no se ve un medicamento, name debe ser ''.";
+
+            Map<String, Object> textPart = Map.of("text", prompt);
+            Map<String, Object> imgPart = Map.of("inline_data",
+                    Map.of("mime_type", "image/jpeg", "data", base64Image));
+            Map<String, Object> body = Map.of(
+                    "contents", List.of(Map.of("parts", List.of(textPart, imgPart))),
+                    "generationConfig", Map.of("response_mime_type", "application/json"));
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Content-Type", "application/json");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> resp = restTemplate.postForObject(
+                    url, new HttpEntity<>(body, headers), Map.class);
+            if (resp == null) return Optional.empty();
+
+            // candidates[0].content.parts[0].text -> el JSON pedido
+            String json = extractGeminiText(resp);
+            if (json == null || json.isBlank()) return Optional.empty();
+
+            Map<String, Object> data =
+                    org.springframework.boot.json.JsonParserFactory.getJsonParser().parseMap(json);
+            String name = str(data.get("name"));
+            if (name.isBlank()) return Optional.empty();
+            String dosage = str(data.get("dosage"));
+            String uso = str(data.get("uso"));
+            String efectos = str(data.get("efectos"));
+
+            // ¿Existe en el catálogo? (por nombre completo o principio activo)
+            List<DrugCatalog> local = repository.searchByName(name);
+            if (local.isEmpty()) {
+                String first = name.split("\\s+")[0];
+                if (first.length() >= 4) local = repository.searchByName(first);
+            }
+            if (!local.isEmpty()) {
+                DrugCatalog d = local.get(0);
+                boolean changed = false;
+                if ((d.getUso() == null || d.getUso().isBlank()) && !uso.isBlank()) {
+                    d.setUso(uso);
+                    changed = true;
+                }
+                if ((d.getEfectosSecundarios() == null || d.getEfectosSecundarios().isBlank())
+                        && !efectos.isBlank()) {
+                    d.setEfectosSecundarios(efectos);
+                    changed = true;
+                }
+                if (changed) repository.save(d);
+                return Optional.of(toResponse(d));
+            }
+
+            // No está en el catálogo: guardar lo que dio Gemini
+            DrugCatalog c = DrugCatalog.builder()
+                    .name(name)
+                    .genericName(name.split("\\s+")[0])
+                    .dosage(dosage.isBlank() ? null : dosage)
+                    .uso(uso.isBlank() ? null : uso)
+                    .efectosSecundarios(efectos.isBlank() ? null : efectos)
+                    .source("gemini")
+                    .country("CL")
+                    .verified(false)
+                    .build();
+            return Optional.of(toResponse(repository.save(c)));
+        } catch (Exception e) {
+            System.err.println("Gemini identify failed: " + e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private String str(Object o) {
+        return (o == null) ? "" : o.toString().trim();
+    }
+
+    @SuppressWarnings("unchecked")
+    private String extractGeminiText(Map<String, Object> resp) {
+        try {
+            var candidates = (List<Map<String, Object>>) resp.get("candidates");
+            if (candidates == null || candidates.isEmpty()) return null;
+            var content = (Map<String, Object>) candidates.get(0).get("content");
+            var parts = (List<Map<String, Object>>) content.get("parts");
+            if (parts == null || parts.isEmpty()) return null;
+            return (String) parts.get(0).get("text");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public Optional<CatalogResponse> findByBarcode(String barcode) {
         // 1. Buscar en catálogo local primero (y completar uso/efectos si faltan)
         Optional<DrugCatalog> local = repository.findByBarcode(barcode);

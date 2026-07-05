@@ -8,6 +8,8 @@ app:
 spring:
   application:
     name: apigateway-new
+  codec:
+    max-in-memory-size: 10MB  # permite subir la foto (base64) al identificar por Gemini
   cloud:
     gateway:
       server:

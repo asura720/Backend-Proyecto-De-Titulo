@@ -34,6 +34,16 @@ public class DrugCatalogController {
         return ResponseEntity.ok(service.search(q));
     }
 
+    // POST /api/catalog/identify  — identifica el medicamento por foto (Gemini)
+    // Body: { "imageBase64": "..." }
+    @PostMapping("/identify")
+    public ResponseEntity<CatalogResponse> identify(@RequestBody java.util.Map<String, String> body) {
+        String image = body.get("imageBase64");
+        return service.identifyFromImage(image)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     // GET /api/catalog/suggest?prefix=para
     @GetMapping("/suggest")
     public ResponseEntity<List<CatalogResponse>> suggest(@RequestParam String prefix) {
